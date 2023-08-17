@@ -32,15 +32,15 @@ def convert_df(input_df):
 
 
 st.set_page_config(
-   page_title="数据处理工具",
-   page_icon=":memo:",
-   layout="wide",
-   initial_sidebar_state="expanded",
+    page_title="数据处理工具",
+    page_icon=":memo:",
+    layout="wide",
+    initial_sidebar_state="expanded",
 )
 
 # 边栏中创建单选按钮
 st.sidebar.markdown("# :chestnut:操作步骤")
-selection = st.sidebar.radio("步骤", ("1. 数据处理", "2. 绘图"), label_visibility="hidden")
+selection = st.sidebar.radio("步骤", ("1. 数据处理", "2. 分组与绘图"), label_visibility="hidden")
 
 # 根据选择的选项显示不同的输入组件
 if selection == "1. 数据处理":
@@ -78,8 +78,16 @@ if selection == "1. 数据处理":
         row_visible = st.number_input(':question:想看几行:question:', value=5, step=1)
 
         # 在主页面展示DataFrame的前n行
-        st.write("文件处理情况：")
+        st.write(f"文件预览(前{row_visible}行)：")
         st.write(df.head(row_visible))
+
+        # 显示DataFrame的统计信息
+        st.write("统计信息:")
+        df_describe = df.describe(include='all').rename(
+            index={"count": "数量", "mean": "均值", "std": "标准差", "min": "最小值min",
+                   "25%": "25%分位数", "50%": "50%中位数", "75%": "75%分位数", "max": "最大值max"}
+        )
+        st.write(df_describe)  # 不会改变原表
 
         num, war, null_df = is_null(df)  # 判断是否含缺失值
         if num != 0:
@@ -89,13 +97,12 @@ if selection == "1. 数据处理":
         else:
             st.success(f"通过：数据处理后不存在个缺失值，请将CSV文件下载到本地后再进行绘图", icon="✅")
 
-elif selection == "2. 绘图":
+elif selection == "2. 分组与绘图":
     uploaded_file = st.sidebar.file_uploader("上传CSV文件：", type=["csv"], accept_multiple_files=False)
 
     if uploaded_file is not None:
         df = pd.read_csv(uploaded_file, index_col="时间", encoding="gbk")  # 读取
         columns = df.columns.tolist()  # 获取列名
-        selected_columns = st.multiselect("选择", columns, placeholder="选择需要观察的通道", label_visibility="hidden")
 
         df.index = pd.to_datetime(df.index)  # index转为时间格式
 
@@ -110,15 +117,58 @@ elif selection == "2. 绘图":
         start_datetime = pd.to_datetime(str(start_date) + ' ' + str(start_time))
         end_datetime = pd.to_datetime(str(end_date) + ' ' + str(end_time))
 
+        st.write(f'所选时间段：{start_datetime} - {end_datetime}')
         if start_datetime < end_datetime:
             if end_datetime > df.index[0] and start_datetime < df.index[-1]:
                 # 根据起始时间和终止时间筛选DataFrame
-                filtered_df = df.loc[start_datetime:end_datetime]
+                filtered_df = df.loc[start_datetime:end_datetime]  # 时间段筛选
+
+                with st.expander("分组观测"):
+                    num_parts = st.number_input("平均分组", value=5, step=1, format="%d")
+                    part_size = len(filtered_df.columns) // num_parts
+
+                    result_data = {'组': [], '最大值max': [], '最小值min': []}
+
+                    for i in range(num_parts):
+                        start_index = i * part_size
+                        end_index = start_index + part_size
+                        if i == num_parts - 1:  # 最后一个部分
+                            end_index = len(filtered_df.columns)
+                        part_data = filtered_df.iloc[:, start_index:end_index]
+                        col_range = f'{part_data.columns[0]}-{part_data.columns[-1]}'
+                        part_max = part_data.max().max()
+                        part_min = part_data.min().min()
+                        result_data['组'].append(col_range)
+                        result_data['最大值max'].append(part_max)
+                        result_data['最小值min'].append(part_min)
+
+                    st.write(pd.DataFrame(result_data))
+
+                selected_columns = st.multiselect("选择", columns,
+                                                  placeholder="选择需要观察的通道",
+                                                  label_visibility="hidden")
 
                 if selected_columns:
-                    filtered_df = filtered_df[selected_columns]  # 数据筛选
-                    st.line_chart(filtered_df)  # 画图
+                    filtered_df = filtered_df[selected_columns]  # 数据通道(列)筛选
+
+                    # 画图
+                    chart = st.line_chart(filtered_df)
+
+                    # 最值点
+                    st.markdown('#### 最值点：')
+                    max_values = filtered_df.max(axis=0)  # 最大值
+                    max_index = filtered_df.idxmax(axis=0)  # 最大值index
+                    min_values = filtered_df.min(axis=0)  # 最大值
+                    min_index = filtered_df.idxmin(axis=0)  # 最小值index
+                    result_df = pd.DataFrame({'最大值max': max_values,
+                                              '首个最大值时间点': max_index,
+                                              '最小值min': min_values,
+                                              '首个最小值时间点': min_index})
+                    st.write(result_df)
+
+                    st.markdown('#### 详细信息：')
                     st.write(filtered_df)  # 展示表格
+
             else:
                 st.error(f"警告：选取时间已经超出数据时间范围({df.index[0]}-{df.index[-1]})！", icon="⚠️")
         else:
