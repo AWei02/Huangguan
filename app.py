@@ -123,26 +123,26 @@ elif selection == "2. 分组与绘图":
                 # 根据起始时间和终止时间筛选DataFrame
                 filtered_df = df.loc[start_datetime:end_datetime]  # 时间段筛选
 
-                with st.expander("分组观测"):
-                    num_parts = st.number_input("平均分组", value=5, step=1, format="%d")
-                    part_size = len(filtered_df.columns) // num_parts
-
-                    result_data = {'组': [], '最大值max': [], '最小值min': []}
-
-                    for i in range(num_parts):
-                        start_index = i * part_size
-                        end_index = start_index + part_size
-                        if i == num_parts - 1:  # 最后一个部分
-                            end_index = len(filtered_df.columns)
-                        part_data = filtered_df.iloc[:, start_index:end_index]
-                        col_range = f'{part_data.columns[0]}-{part_data.columns[-1]}'
-                        part_max = part_data.max().max()
-                        part_min = part_data.min().min()
-                        result_data['组'].append(col_range)
-                        result_data['最大值max'].append(part_max)
-                        result_data['最小值min'].append(part_min)
-
-                    st.write(pd.DataFrame(result_data))
+                # with st.expander("分组观测"):
+                #     num_parts = st.number_input("平均分组", value=5, step=1, format="%d")
+                #     part_size = len(filtered_df.columns) // num_parts
+                #
+                #     result_data = {'组': [], '最大值max': [], '最小值min': []}
+                #
+                #     for i in range(num_parts):
+                #         start_index = i * part_size
+                #         end_index = start_index + part_size
+                #         if i == num_parts - 1:  # 最后一个部分
+                #             end_index = len(filtered_df.columns)
+                #         part_data = filtered_df.iloc[:, start_index:end_index]
+                #         col_range = f'{part_data.columns[0]}-{part_data.columns[-1]}'
+                #         part_max = part_data.max().max()
+                #         part_min = part_data.min().min()
+                #         result_data['组'].append(col_range)
+                #         result_data['最大值max'].append(part_max)
+                #         result_data['最小值min'].append(part_min)
+                #
+                #     st.write(pd.DataFrame(result_data))
 
                 selected_columns = st.multiselect("选择", columns,
                                                   placeholder="选择需要观察的通道",
@@ -173,3 +173,6 @@ elif selection == "2. 分组与绘图":
                 st.error(f"警告：选取时间已经超出数据时间范围({df.index[0]}-{df.index[-1]})！", icon="⚠️")
         else:
             st.error("警告：起始时间不能超过终止时间！", icon="⚠️")
+
+
+
